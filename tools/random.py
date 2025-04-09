@@ -9,43 +9,43 @@ import io
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
 
-# 配置日志记录
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class UnsplashRandomTool(Tool):
-    """Unsplash随机图片工具
-    提供从Unsplash获取随机图片的功能
+    """Unsplash Random Photo Tool
+    Provides functionality to get random photos from Unsplash
     """
     
     API_BASE_URL = "https://api.unsplash.com"
     
     def get_credentials(self) -> dict[str, Any]:
-        """获取Unsplash API凭证"""
+        """Get Unsplash API credentials"""
         return self.runtime.credentials
     
     def _validate_parameters(self, tool_parameters: dict[str, Any]) -> None:
-        """验证输入参数
+        """Validate input parameters
         
         Args:
-            tool_parameters: 工具参数
+            tool_parameters: Tool parameters
             
         Raises:
-            ValueError: 当参数无效时抛出
+            ValueError: When parameters are invalid
         """
-        # 验证数量参数
+        # Validate count parameter
         count = tool_parameters.get('count', 1)
         if not isinstance(count, (int, float)) or count <= 0 or count > 30:
             raise ValueError("Photo count must be an integer between 1 and 30")
     
     def _build_photo_object(self, photo: dict) -> dict:
-        """从API响应构建照片对象
+        """Build photo object from API response
         
         Args:
-            photo: 原始照片数据
+            photo: Raw photo data
             
         Returns:
-            结构化的照片对象
+            Structured photo object
         """
         return {
             'id': photo.get('id'),
@@ -80,13 +80,13 @@ class UnsplashRandomTool(Tool):
         }
         
     def _download_image(self, url: str) -> bytes:
-        """下载图片并返回二进制数据
+        """Download image and return binary data
         
         Args:
-            url: 图片URL
+            url: Image URL
             
         Returns:
-            图片的二进制数据
+            Image binary data
         """
         try:
             logger.info(f"Downloading image: {url}")
@@ -98,40 +98,40 @@ class UnsplashRandomTool(Tool):
             raise
     
     def _invoke(self, tool_parameters: dict[str, Any]) -> Generator[ToolInvokeMessage]:
-        """执行Unsplash随机图片获取
+        """Execute Unsplash random photo retrieval
         
         Args:
-            tool_parameters: 工具参数
+            tool_parameters: Tool parameters
             
         Yields:
-            ToolInvokeMessage: 工具调用消息
+            ToolInvokeMessage: Tool invocation messages
         """
         try:
-            # 验证参数
+            # Validate parameters
             self._validate_parameters(tool_parameters)
             
-            # 获取参数
+            # Get parameters
             query = tool_parameters.get('query')
             count = min(int(tool_parameters.get('count', 1)), 30)
             orientation = tool_parameters.get('orientation')
             color = tool_parameters.get('color')
             
-            # 获取凭证
+            # Get credentials
             credentials = self.get_credentials()
             access_key = credentials.get('access_key')
             
-            # 设置API请求头
+            # Set API request headers
             headers = {
                 'Authorization': f'Client-ID {access_key}'
             }
             
-            # 构建API请求URL和参数
+            # Build API request URL and parameters
             url = urljoin(self.API_BASE_URL, '/photos/random')
             params = {
                 'count': count
             }
             
-            # 添加可选参数
+            # Add optional parameters
             if query:
                 params['query'] = query
             if orientation:
@@ -141,13 +141,13 @@ class UnsplashRandomTool(Tool):
             
             logger.info(f"Fetching random photos from Unsplash with parameters: {params}")
             
-            # 发送API请求
+            # Send API request
             start_time = time.time()
             response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
             
-            # 处理响应数据
-            # 随机照片API返回单张照片时是对象，多张照片时是数组
+            # Process response data
+            # Random photo API returns an object for a single photo, an array for multiple photos
             photos_data = response.json()
             if not isinstance(photos_data, list):
                 photos_data = [photos_data]
@@ -155,7 +155,7 @@ class UnsplashRandomTool(Tool):
             request_time = time.time() - start_time
             logger.info(f"Unsplash API request completed in {request_time:.2f} seconds")
             
-            # 创建文本消息，包含获取结果摘要
+            # Create text message with retrieval results summary
             param_desc = []
             if query:
                 param_desc.append(f"query='{query}'")
@@ -168,7 +168,7 @@ class UnsplashRandomTool(Tool):
             summary_text = f"Retrieved {len(photos_data)} random photos ({param_str})"
             yield self.create_text_message(summary_text)
             
-            # 处理没有结果的情况
+            # Handle case with no results
             if not photos_data:
                 yield self.create_json_message({
                     'photos': [],
@@ -183,34 +183,34 @@ class UnsplashRandomTool(Tool):
                 yield self.create_variable_message('random_photos', [])
                 return
             
-            # 构建返回结果
+            # Build return results
             photos = []
             photo_details = []
             
             for photo in photos_data:
-                # 构建照片对象
+                # Build photo object
                 photo_data = self._build_photo_object(photo)
                 photos.append(photo_data)
                 
-                # 获取图片URL
+                # Get image URL
                 image_url = photo.get('urls', {}).get('regular')
                 if image_url:
                     try:
-                        # 下载图片
+                        # Download image
                         image_data = self._download_image(image_url)
                         
-                        # 添加图片描述
+                        # Add image description
                         description = (
                             photo.get('description') or 
                             photo.get('alt_description') or 
                             f"Photo by {photo.get('user', {}).get('name', 'Unknown')}"
                         )
                         
-                        # 创建文件名
+                        # Create filename
                         photo_id = photo.get('id', 'photo')
                         filename = f"unsplash_random_{photo_id}.jpg"
                         
-                        # 使用blob_message发送图片数据
+                        # Use blob_message to send image data
                         yield self.create_blob_message(
                             blob=image_data,
                             meta={
@@ -220,7 +220,7 @@ class UnsplashRandomTool(Tool):
                             }
                         )
                         
-                        # 将照片详细信息添加到列表中，而不是作为文本消息输出
+                        # Add photo details to list, rather than outputting as text messages
                         user_name = photo.get('user', {}).get('name', 'Unknown')
                         user_link = photo.get('user', {}).get('links', {}).get('html', '')
                         photo_link = photo.get('links', {}).get('html', '')
@@ -242,7 +242,7 @@ class UnsplashRandomTool(Tool):
                         logger.error(f"Error processing image: {str(e)}")
                         yield self.create_text_message(f"Failed to process image: {str(e)}")
             
-            # 创建JSON消息，包含完整的结果数据和照片详情
+            # Create JSON message with complete result data and photo details
             result = {
                 'photos': photos,
                 'error': None,
@@ -256,12 +256,12 @@ class UnsplashRandomTool(Tool):
             }
             yield self.create_json_message(result)
             
-            # 创建变量消息，可在工作流中使用
+            # Create variable messages for use in workflow
             yield self.create_variable_message('random_photos', photos)
             yield self.create_variable_message('photo_details', photo_details)
             
         except ValueError as e:
-            # 参数验证错误
+            # Parameter validation error
             error_message = f"Parameter error: {str(e)}"
             logger.error(error_message)
             yield self.create_text_message(error_message)
@@ -269,7 +269,7 @@ class UnsplashRandomTool(Tool):
             yield self.create_variable_message('random_photos', [])
             
         except requests.RequestException as e:
-            # API请求错误
+            # API request error
             error_message = f"Unsplash API request error: {str(e)}"
             logger.error(error_message)
             yield self.create_text_message(error_message)
@@ -277,7 +277,7 @@ class UnsplashRandomTool(Tool):
             yield self.create_variable_message('random_photos', [])
             
         except Exception as e:
-            # 其他未预期的错误
+            # Other unexpected errors
             error_message = f"Error retrieving random photos: {str(e)}"
             logger.error(f"Unexpected error: {str(e)}", exc_info=True)
             yield self.create_text_message(error_message)
