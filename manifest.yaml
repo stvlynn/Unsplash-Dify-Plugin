@@ -1,0 +1,40 @@
+version: 0.0.1
+type: plugin
+author: stvlynn
+name: unsplash
+label:
+  en_US: Unsplash
+  ja_JP: Unsplash
+  zh_Hans: Unsplash图片搜索
+  pt_BR: Unsplash
+description:
+  en_US: Search for high-quality photos on Unsplash and get random photos
+  ja_JP: Unsplashで高品質な写真を検索してランダムな写真を取得
+  zh_Hans: 在Unsplash上搜索高质量图片并获取随机图片
+  pt_BR: Pesquise fotos de alta qualidade no Unsplash e obtenha fotos aleatórias
+icon: icon.svg
+resource:
+  memory: 268435456
+  permission:
+    model:
+      enabled: true
+      llm: false
+      text_embedding: true
+      rerank: false
+      tts: false
+      speech2text: false
+      moderation: false
+plugins:
+  tools:
+    - provider/unsplash.yaml
+meta:
+  version: 0.0.1
+  arch:
+    - amd64
+    - arm64
+  runner:
+    language: python
+    version: "3.12"
+    entrypoint: main
+created_at: 2025-04-09T10:42:13.491322+08:00
+verified: false
